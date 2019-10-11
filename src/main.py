@@ -4,25 +4,47 @@
 
 import RPi.GPIO as GPIO
 import time
+import spidev
+# from smbus2 import SMBus
+import smbus
 
-def init_SPI():
-    print("SPI setup")
 
-def init_I2C():
-    print("I2C setup")
+RTC = 0
+RTC_address = 0
+
+spi = spidev.SpiDev() # create spi object
+spi.open(0, 1) # open spi port 0, device (CS) 1
+
+try:
+    RTC = smbus.SMBus(1)
+    RTC_address = 0x6f
+except:
+    print("Failed to setup I2C")
+
+try:
+    spi = spidev.SpiDev() # create spi object
+    spi.open(0, 1) # open spi port 0, device (CS) 1
+except:
+    print("Failed to setup SPI")
+
+ADC = 1
+DAC = 3
 
 def sound_alarm():
     pass
 
-def read_from_ADC():
+def read_from_ADC(channel):
     pass
+
+def get_time():
+    b = bus.read_byte_data(RTC_address, 0) #Read from adress and offset 0
+    return b
 
 def write_to_dac():
     pass
 
 def setup():
-    init_I2C()
-    init_SPI()
+    pass
 
 def main():
     print("write your logic here")
