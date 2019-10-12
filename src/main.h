@@ -39,6 +39,22 @@ const char HOUR = 0x02;
 const char TIMEZONE = 2; // +02H00 (RSA)
 
 // ==== ==== Functions ==== ====//
+int init_buttons(void);
+int init_ADC(void);
+int init_DAC(void);
+int init_RTC(void);
+int update_Blynk(void);
+int get_Blynk_command(void);
+int change_interval(void);
+long get_time(void);
+float calculate_Vout(void);
+int turn_off_alarm(void);
+int sound_alarm(void);
+int read_ADC(void);
+int hFormat(int hours);
+int hexCompensation(int units);
+int decCompensation(int units);
+
 
 
 #endif
