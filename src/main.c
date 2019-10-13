@@ -45,19 +45,19 @@ int init_buttons(){
     //setting up the SPI interface
     
     if (wiringPiISR(START_STOP_BUTTON, INT_EDGE_FALLING, &play_pause_isr) != 0){
-        printf("registering isr for play button failed.");
+        printf("registering isr for START_STOP_BUTTON failed.");
     }
 
     if (wiringPiISR(CHANGE_INTERVAL, INT_EDGE_FALLING, &stop_isr) != 0){
-        printf("registering isr for stop button failed.");
+        printf("registering isr for CHANGE_INTERVAL failed.");
     }
 
      if (wiringPiISR(STOP_ALARM, INT_EDGE_FALLING, &play_pause_isr) != 0){
-        printf("registering isr for play button failed.");
+        printf("registering isr for STOP_ALARM failed.");
     }
 
     if (wiringPiISR(RESET_SYSTEM_TIME , INT_EDGE_FALLING, &stop_isr) != 0){
-        printf("registering isr for stop button failed.");
+        printf("registering isr for RESET_SYSTEM_TIME failed.");
     }
 
     return 1;
