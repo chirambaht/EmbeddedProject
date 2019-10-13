@@ -28,15 +28,33 @@ int init_buttons(){
     return 1;
 }
 
+// int init_ADC_DAC(){
+//     digitalWrite (CS0, HIGH);           // Set slave select to high
+//     digitalWrite (CS1, HIGH);           // Set slave select to high for DAC
+//     wiringPiSPISetup(0, SPI_SPEED);     // SPI Channel 0 at speed 500 000
+//     return 1;
+// }
+
 int init_ADC(){
-    digitalWrite (CS0, HIGH);
-    ADC = wiringPiSPISetup(0, SPI_SPEED);
+
     return 1;
 }
 
 int init_DAC(){
-    digitalWrite (CS1, HIGH);
+
     return 1;
+}
+
+int write_DAC(){
+    bcm2835_spi_chipSelect(BCM2835_SPI_CS1);
+    bcm2835_spi_setChipSelectPolarity(BCM2835_SPI_CS0,LOW);
+
+    V_out = 2.1;
+    int temp = (V_out / 3.3) * 4096;
+    uint16_t data = 0xF0;
+    data = data | (temp << 2);
+
+    bcm2835_spi_writenb(data, 2);
 }
 
 int init_RTC(){
@@ -91,46 +109,6 @@ int sound_alarm() {
     return 1;
 }
 
-int read_ADC(){
-    digitalWrite (CS0, LOW);
-    // Cycle through each ADC channel and read the value. Not converted!.
-    for (int adcnum = 0; adcnum < 3; adcnum++){
-        unsigned int commandout = 0;
-        unsigned int adcout = 0;
-
-        commandout = adcnum & 0x3;  // only 0-7
-        commandout |= 0x18;     // start bit + single-ended bit
-
-        unsigned char spibuf[3];
-
-        spibuf[0] = commandout;
-        spibuf[1] = 0;
-        spibuf[2] = 0;
-
-        wiringPiSPIDataRW(1, spibuf, 3);
-        for (int i = 0; i < 3; i++){
-            printf("%d - %d\n",i ,spibuf[i]);
-        }
-
-        adcout = ((spibuf[1] << 8) | (spibuf[2])) >> 4;
-
-        if (adcnum == 0){
-            temperature = adcout;
-            printf("Temp: %d\n", adcout);
-        }
-        else if (adcnum == 1){
-            humidity = adcout;
-            printf("Humidity: %d\n", adcout);
-        }
-        else{
-            light_intensity = adcout;
-            printf("Light: %d\n", adcout);
-        }
-
-    }
-    digitalWrite (CS0, HIGH);
-    return 1;
-}
 
 // ===== ===== RTC FUNCTIONS ==== ==== //
 int hFormat(int hours){
@@ -186,16 +164,29 @@ int decCompensation(int units){
 	return units;
 }
 
+int print_heading(){
+    printf("__________________________________________________________________________\n");
+    printf("| RTC Time | Sys Time | Humidity | Temperature | Light | DAC Out | Alarm |\n");
+    return 1;
+}
+
+int print_values(){
+    //RTC Time Sys Timer Humidity Temp Light DAC out Alarm
+    printf("| %8s | %8s |   %1.1f V  |     %2d C    | %5d |   %1.2f  |   %1c   |\n","test","test", 2.3, 25, 1000, 0.23 ,'*' );
+    return 1;
+}
+
 int main(int argc, char const *argv[]) {
     /* code */
-    printf("Running the puppy\n");
-    init_ADC();
-    printf("ADC initialised!\n");
-    read_ADC();
-    printf("V_out: %f\n", calculate_Vout());
-
-    if (V_out >= 2.65 || V_out <= 0.65){
-        sound_alarm();
+    init_SPI();
+    write_DAC();
+    print_heading();
+    for (;;){
+        print_values();
+        delay(interval * 1000);
     }
+
+    // --- ---- --- Debug Lines --- ---- ---//
+    printf("Temp: %3.3f\nHumidity: %3.3f\nLight: %3.3f\nV_out: %3.3f\nAlarm?: %d\nTime: %s\nInterval: %d\n",temperature,humidity, light_intensity, V_out, alarm_buzzer, "Coming soon", interval );
     return 0;
 }

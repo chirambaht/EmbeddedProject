@@ -6,10 +6,11 @@
 #include <wiringPi.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <wiringPiSPI.h>
+// #include <wiringPiSPI.h>
 #include <wiringPiI2C.h>
 #include <unistd.h>
 #include <math.h>
+#include <bcm2835.h>
 
 // ==== ==== Buttons ==== ====//
 const int START_STOP_BUTTON = 21;
@@ -38,10 +39,17 @@ const char MIN = 0x01;
 const char HOUR = 0x02;
 const char TIMEZONE = 2; // +02H00 (RSA)
 
+// ==== ====    Start    ==== ==== //
+const uint8_t start = 0x01;
+const uint8_t end = 0x00;
+const uint8_t chan = 0x00;
+
 // ==== ==== Functions ==== ====//
 int init_buttons(void);
+// int readADC(uint8_t chan);
+// float volts_adc(int adc);
 int init_ADC(void);
-int init_DAC(void);
+// int init_DAC(void);
 int init_RTC(void);
 int update_Blynk(void);
 int get_Blynk_command(void);
