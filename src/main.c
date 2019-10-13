@@ -25,6 +25,33 @@ int init_buttons(){
     please go look at the main.h file for button names. For all
     your functions, please return 0 if there is an error and
     comment your code where needed.*/
+     //Set up wiring Pi
+    wiringPiSetup();
+    
+    //setting up the buttons
+    
+	pinMode(START_STOP_BUTTON, INPUT);
+    pullUpDnControl(START_STOP_BUTTON, PUD_UP);
+    
+    pinMode(CHANGE_INTERVAL, INPUT);
+    pullUpDnControl(CHANGE_INTERVAL, PUD_UP);
+
+    pinMode(STOP_ALARM, INPUT);
+    pullUpDnControl(STOP_ALARM, PUD_UP);
+
+    pinMode(RESET_SYSTEM_TIME , INPUT);
+    pullUpDnControl(RESET_SYSTEM_TIME , PUD_UP);
+    
+    //setting up the SPI interface
+    
+    if (wiringPiISR(PLAY_BUTTON, INT_EDGE_FALLING, &play_pause_isr) != 0){
+        printf("registering isr for play button failed.");
+    }
+
+    if (wiringPiISR(STOP_BUTTON, INT_EDGE_FALLING, &stop_isr) != 0){
+        printf("registering isr for stop button failed.");
+    }
+
     return 1;
 }
 
