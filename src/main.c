@@ -55,37 +55,31 @@ int init_buttons(){
     return 1;
 }
 
-// int init_ADC_DAC(){
-//     digitalWrite (CS0, HIGH);           // Set slave select to high
-//     digitalWrite (CS1, HIGH);           // Set slave select to high for DAC
-//     wiringPiSPISetup(0, SPI_SPEED);     // SPI Channel 0 at speed 500 000
-//     return 1;
-// }
-
 int init_ADC(){
-
+    wiringPiSPISetup (0, 409600) ;
     return 1;
 }
 
 int init_DAC(){
-
+    //Speed = 409600
+    wiringPiSPISetup (1, 409600);
     return 1;
-}
-
-int write_DAC(){
-    bcm2835_spi_chipSelect(BCM2835_SPI_CS1);
-    bcm2835_spi_setChipSelectPolarity(BCM2835_SPI_CS0,LOW);
-
-    V_out = 2.1;
-    int temp = (V_out / 3.3) * 4096;
-    uint16_t data = 0xF0;
-    data = data | (temp << 2);
-
-    bcm2835_spi_writenb(data, 2);
 }
 
 int init_RTC(){
     RTC = wiringPiI2CSetup(RTCADDR);
+    return 1;
+}
+
+int write_DAC(){
+    V_out = 2.1;
+    int temp = (V_out / 3.3) * 4096;
+    unsigned char data[2];
+
+    data[0] = 0xF0;
+    data[0] = data[0] | (temp << 2);
+    wiringPiSPIDataRW(1, data, 1);
+
     return 1;
 }
 
@@ -205,11 +199,15 @@ int print_values(){
 
 int main(int argc, char const *argv[]) {
     /* code */
-    init_SPI();
+    init_ADC();
+    init_DAC();
+
     write_DAC();
+
     print_heading();
     for (;;){
         print_values();
+        write_DAC();
         delay(interval * 1000);
     }
 
