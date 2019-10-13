@@ -5,15 +5,15 @@ int monitor = 0;                // 1 = on, 0 = off
 int interval = 1;               // How often values will be logged
 long last_alarm = 0;            // The time that the last alarm was rung
 int alarm_buzzer = 0;           // 1 = on, 0 = off
-float temperature = 0;
+uint8_t temperature = 0;
 float humidity = 0;
-float light_intensity = 0;
+uint16_t light_intensity = 0;
 float V_out = 0;
 long current_time = 0;          // How long the system has been running for
 long system_time = 0;
+int DEBUG = 1;
+// bool threadReady = false;       //using this to finish writing the first column at the start of the song, before the column is played
 
-
-int ADC;
 int hours, mins, secs;
 long lastInterruptTime = 0;     // Used for button debounce
 int RTC;                        // Holds the RTC instance
@@ -21,18 +21,10 @@ int RTC;                        // Holds the RTC instance
 // ===== ===== ==== Function Definitions ===== ==== ==== //
 
 int init_buttons(){
-    /* Tatenda, this is one of your sections. Before doing this
-    please go look at the main.h file for button names. For all
-    your functions, please return 0 if there is an error and
-    comment your code where needed.*/
-     //Set up wiring Pi
-    wiringPiSetup();
-    
-    //setting up the buttons
-    
+
 	pinMode(START_STOP_BUTTON, INPUT);
     pullUpDnControl(START_STOP_BUTTON, PUD_UP);
-    
+
     pinMode(CHANGE_INTERVAL, INPUT);
     pullUpDnControl(CHANGE_INTERVAL, PUD_UP);
 
@@ -41,36 +33,37 @@ int init_buttons(){
 
     pinMode(RESET_SYSTEM_TIME , INPUT);
     pullUpDnControl(RESET_SYSTEM_TIME , PUD_UP);
-    
-    //setting up the SPI interface
-    
-    if (wiringPiISR(START_STOP_BUTTON, INT_EDGE_FALLING, &play_pause_isr) != 0){
-        printf("registering isr for play button failed.");
-    }
 
-    if (wiringPiISR(CHANGE_INTERVAL, INT_EDGE_FALLING, &stop_isr) != 0){
-        printf("registering isr for stop button failed.");
-    }
-
-     if (wiringPiISR(STOP_ALARM, INT_EDGE_FALLING, &play_pause_isr) != 0){
-        printf("registering isr for play button failed.");
-    }
-
-    if (wiringPiISR(RESET_SYSTEM_TIME , INT_EDGE_FALLING, &stop_isr) != 0){
-        printf("registering isr for stop button failed.");
-    }
+    // if (wiringPiISR(START_STOP_BUTTON, INT_EDGE_FALLING, &toggle_monitor) != 0){
+    //     printf("registering isr for stop/start button failed.");
+    // }
+    //
+    // if (wiringPiISR(CHANGE_INTERVAL, INT_EDGE_FALLING, &change_interval) != 0){
+    //     printf("registering isr for inverval button failed.");
+    // }
+    //
+    //  if (wiringPiISR(STOP_ALARM, INT_EDGE_FALLING, &turn_off_alarm) != 0){
+    //     printf("registering isr for stop alarm button failed.");
+    // }
+    //
+    // if (wiringPiISR(RESET_SYSTEM_TIME , INT_EDGE_FALLING, &reset_time) != 0){
+    //     printf("registering isr for reset button failed.");
+    // }
 
     return 1;
 }
 
+void toggle_monitor(){
+    monitor = !monitor;
+}
+
 int init_ADC(){
-    wiringPiSPISetup (0, 409600) ;
+    wiringPiSPISetup(0, 500000);
     return 1;
 }
 
 int init_DAC(){
-    //Speed = 409600
-    wiringPiSPISetup (1, 409600);
+    wiringPiSPISetup(1, 409600);
     return 1;
 }
 
@@ -80,15 +73,69 @@ int init_RTC(){
 }
 
 int write_DAC(){
-    V_out = 2.1;
-    int temp = (V_out / 3.3) * 4096;
+    uint16_t temp = ((uint16_t)((V_out / 3.3) * 1024) & 1023);
     unsigned char data[2];
 
-    data[0] = 0xF0;
-    data[0] = data[0] | (temp << 2);
-    wiringPiSPIDataRW(1, data, 1);
+    data[0] = 0x30 | (temp >> 6);
+
+    data[1] = 0x00 | (temp << 2);
+
+    wiringPiSPIDataRW(1, data, 2);
 
     return 1;
+}
+
+int read_ADC(){
+    for (int i = 0; i < 3; i++){
+        unsigned char buffer[3];
+        buffer[0] = 0x01;
+        buffer[2] = 0x00;
+
+        if (i == 0){
+            buffer[1] = 0x80;
+            wiringPiSPIDataRW(0, buffer, 3);
+            uint16_t temp = get_ADC_value(buffer);
+            temperature = ((3.3 * (temp/1024)) - 0.5)/0.01;
+        }
+        else if (i == 1){
+            buffer[1] = 0x90;
+            wiringPiSPIDataRW(0, buffer, 3);
+            light_intensity = get_ADC_value(buffer);
+        }
+        else{
+            buffer[1] = 0xA0;
+            wiringPiSPIDataRW(0, buffer, 3);
+            uint16_t temp = get_ADC_value(buffer);
+            humidity = 3.3 * (humidity/1024)
+        }
+
+    }
+    return 1;
+}
+
+uint16_t get_ADC_value(char* arr){
+    uint16_t value = arr[1];
+
+    value = (value << 8) | arr[2];
+
+    return value;
+}
+
+int reset_time(){
+    return 1;
+}
+
+int copy_arr(char* arr1, char* arr2){
+    for (int i = 0; i < 24; i++){
+        arr2[i] = arr1[i];
+    }
+    return 1;
+}
+
+void print_arr(char* arr){
+    for (int i = 0; i < 24; i++){
+        printf("%d - %c\n",i, arr[i] );
+    }
 }
 
 int update_Blynk(){
@@ -194,28 +241,50 @@ int decCompensation(int units){
 }
 
 int print_heading(){
-    printf("__________________________________________________________________________\n");
+    printf(" ------------------------------------------------------------------------\n");
     printf("| RTC Time | Sys Time | Humidity | Temperature | Light | DAC Out | Alarm |\n");
+    printf("|----------|----------|----------|-------------|-------|---------|-------|\n");
     return 1;
 }
 
 int print_values(){
+    if (!DEBUG){
+        return 0;
+    }
+
+
     //RTC Time Sys Timer Humidity Temp Light DAC out Alarm
-    printf("| %8s | %8s |   %1.1f V  |     %2d C    | %5d |   %1.2f  |   %1c   |\n","test","test", 2.3, 25, 1000, 0.23 ,'*' );
+    printf("| %8s | %8s |   %1.1f V  |     %2d C    | %5d |   %1.2f  |   %1c   |\n","test","test", humidity, temperature, light_intensity, V_out ,'*' );
     return 1;
 }
 
 int main(int argc, char const *argv[]) {
     /* code */
+    //Set up wiring Pi
+    wiringPiSetup();
+    init_buttons();
+
     init_ADC();
     init_DAC();
 
-    write_DAC();
+    // // Thread setup
+    // pthread_attr_t tattr;
+    // pthread_t thread_id;
+    // int newprio = 99;
+    // sched_param param;
+    //
+    // pthread_attr_init (&tattr);
+    // pthread_attr_getschedparam (&tattr, &param); /* safe to get existing scheduling param */
+    // param.sched_priority = newprio; /* set the priority; others are unchanged */
+    // pthread_attr_setschedparam (&tattr, &param); /* setting the new scheduling param */
+    // pthread_create(&thread_id, &tattr, read_ADC, (void *)1); /* with new priority specified
+    // print_heading();
 
-    print_heading();
+
     for (;;){
-        print_values();
         write_DAC();
+        read_ADC();
+        print_values();
         delay(interval * 1000);
     }
 

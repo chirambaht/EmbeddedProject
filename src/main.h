@@ -10,6 +10,8 @@
 #include <wiringPiI2C.h>
 #include <unistd.h>
 #include <math.h>
+#include <stdint.h>
+#include <pthread.h>
 // #include <bcm2835.h>
 
 // ==== ==== Buttons ==== ====//
@@ -39,10 +41,20 @@ const char MIN = 0x01;
 const char HOUR = 0x02;
 const char TIMEZONE = 2; // +02H00 (RSA)
 
-// ==== ====    Start    ==== ==== //
+// ==== ====    ADC    ==== ==== //
+
+
+// const int ADC_CHANNEL_0 = 0x0180000;
+// const unsigned char ADC_CHANNEL_0 = {0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+// const int ADC_CHANNEL_1 = 0x0190000;
+// const unsigned char ADC_CHANNEL_1 = {0,0,0,0,0,0,0,1,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0};
+// const int ADC_CHANNEL_2 = 0x01A0000;
+// const unsigned char ADC_CHANNEL_2 = {0,0,0,0,0,0,0,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0};
 
 // ==== ==== Functions ==== ====//
 int init_buttons(void);
+void toggle_monitor(void);
+
 // int readADC(uint8_t chan);
 // float volts_adc(int adc);
 int init_ADC(void);
