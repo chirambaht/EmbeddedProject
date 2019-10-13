@@ -33,7 +33,6 @@ int init_buttons(){
 
     pinMode(RESET_SYSTEM_TIME , INPUT);
     pullUpDnControl(RESET_SYSTEM_TIME , PUD_UP);
-<<<<<<< HEAD
 
     // if (wiringPiISR(START_STOP_BUTTON, INT_EDGE_FALLING, &toggle_monitor) != 0){
     //     printf("registering isr for stop/start button failed.");
@@ -50,26 +49,6 @@ int init_buttons(){
     // if (wiringPiISR(RESET_SYSTEM_TIME , INT_EDGE_FALLING, &reset_time) != 0){
     //     printf("registering isr for reset button failed.");
     // }
-=======
-    
-    //setting up the SPI interface
-    
-    if (wiringPiISR(START_STOP_BUTTON, INT_EDGE_FALLING, &play_pause_isr) != 0){
-        printf("registering isr for START_STOP_BUTTON failed.");
-    }
-
-    if (wiringPiISR(CHANGE_INTERVAL, INT_EDGE_FALLING, &stop_isr) != 0){
-        printf("registering isr for CHANGE_INTERVAL failed.");
-    }
-
-     if (wiringPiISR(STOP_ALARM, INT_EDGE_FALLING, &play_pause_isr) != 0){
-        printf("registering isr for STOP_ALARM failed.");
-    }
-
-    if (wiringPiISR(RESET_SYSTEM_TIME , INT_EDGE_FALLING, &stop_isr) != 0){
-        printf("registering isr for RESET_SYSTEM_TIME failed.");
-    }
->>>>>>> 6e0d5177e1d35ffc2e3736a5c29c0784f26479a2
 
     return 1;
 }
@@ -107,39 +86,32 @@ int write_DAC(){
 }
 
 int read_ADC(){
+    uint8_t buffer[3];
     for (int i = 0; i < 3; i++){
-        unsigned char buffer[3];
+
         buffer[0] = 0x01;
         buffer[2] = 0x00;
 
         if (i == 0){
             buffer[1] = 0x80;
             wiringPiSPIDataRW(0, buffer, 3);
-            uint16_t temp = get_ADC_value(buffer);
-            temperature = ((3.3 * (temp/1024)) - 0.5)/0.01;
+            uint16_t temp = (buffer[1] << 8) | buffer[2];
+            temperature = ((3.3 * (temp/1024.0f)) - 0.5)/0.01;
         }
         else if (i == 1){
             buffer[1] = 0x90;
             wiringPiSPIDataRW(0, buffer, 3);
-            light_intensity = get_ADC_value(buffer);
+            light_intensity = (buffer[1] << 8) | buffer[2];
         }
         else{
             buffer[1] = 0xA0;
             wiringPiSPIDataRW(0, buffer, 3);
-            uint16_t temp = get_ADC_value(buffer);
-            humidity = 3.3 * (humidity/1024)
+            uint16_t temp = (buffer[1] << 8) | buffer[2];
+            humidity = (3.3 * (temp/1024.0f));
         }
 
     }
     return 1;
-}
-
-uint16_t get_ADC_value(char* arr){
-    uint16_t value = arr[1];
-
-    value = (value << 8) | arr[2];
-
-    return value;
 }
 
 int reset_time(){
@@ -190,8 +162,11 @@ long get_time() {
 }
 
 float calculate_Vout() {
-    float ans = (light_intensity / 1023) * humidity;
+    float ans = (light_intensity / 1023.0f) * humidity;
     V_out = ans;
+    if (V_out > 2.65 || V_out < 0.65){
+        sound_alarm();
+    }
     return ans;
 }
 
@@ -272,10 +247,14 @@ int print_values(){
     if (!DEBUG){
         return 0;
     }
+    char a = ' ';
 
+    if (alarm_buzzer){
+        a = '*';
+    }
 
     //RTC Time Sys Timer Humidity Temp Light DAC out Alarm
-    printf("| %8s | %8s |   %1.1f V  |     %2d C    | %5d |   %1.2f  |   %1c   |\n","test","test", humidity, temperature, light_intensity, V_out ,'*' );
+    printf("| %8s | %8s |   %1.1f V  |     %2d C    | %5d |   %1.2f  |   %1c   |\n","test","test", humidity, temperature, light_intensity, V_out ,a );
     return 1;
 }
 
@@ -299,17 +278,18 @@ int main(int argc, char const *argv[]) {
     // param.sched_priority = newprio; /* set the priority; others are unchanged */
     // pthread_attr_setschedparam (&tattr, &param); /* setting the new scheduling param */
     // pthread_create(&thread_id, &tattr, read_ADC, (void *)1); /* with new priority specified
-    // print_heading();
+    print_heading();
 
 
     for (;;){
-        write_DAC();
         read_ADC();
+        calculate_Vout();
+        write_DAC();
         print_values();
         delay(interval * 1000);
     }
 
     // --- ---- --- Debug Lines --- ---- ---//
-    printf("Temp: %3.3f\nHumidity: %3.3f\nLight: %3.3f\nV_out: %3.3f\nAlarm?: %d\nTime: %s\nInterval: %d\n",temperature,humidity, light_intensity, V_out, alarm_buzzer, "Coming soon", interval );
+    // printf("Temp: %3.3f\nHumidity: %3.3f\nLight: %3.3f\nV_out: %3.3f\nAlarm?: %d\nTime: %s\nInterval: %d\n",temperature,humidity, light_intensity, V_out, alarm_buzzer, "Coming soon", interval );
     return 0;
 }

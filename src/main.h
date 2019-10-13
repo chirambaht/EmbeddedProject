@@ -71,6 +71,7 @@ int read_ADC(void);
 int hFormat(int hours);
 int hexCompensation(int units);
 int decCompensation(int units);
+uint16_t get_ADC_value(char* arr[]);
 
 
 
