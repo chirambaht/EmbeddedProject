@@ -33,6 +33,7 @@ int init_buttons(){
 
     pinMode(RESET_SYSTEM_TIME , INPUT);
     pullUpDnControl(RESET_SYSTEM_TIME , PUD_UP);
+<<<<<<< HEAD
 
     // if (wiringPiISR(START_STOP_BUTTON, INT_EDGE_FALLING, &toggle_monitor) != 0){
     //     printf("registering isr for stop/start button failed.");
@@ -49,6 +50,26 @@ int init_buttons(){
     // if (wiringPiISR(RESET_SYSTEM_TIME , INT_EDGE_FALLING, &reset_time) != 0){
     //     printf("registering isr for reset button failed.");
     // }
+=======
+    
+    //setting up the SPI interface
+    
+    if (wiringPiISR(START_STOP_BUTTON, INT_EDGE_FALLING, &play_pause_isr) != 0){
+        printf("registering isr for START_STOP_BUTTON failed.");
+    }
+
+    if (wiringPiISR(CHANGE_INTERVAL, INT_EDGE_FALLING, &stop_isr) != 0){
+        printf("registering isr for CHANGE_INTERVAL failed.");
+    }
+
+     if (wiringPiISR(STOP_ALARM, INT_EDGE_FALLING, &play_pause_isr) != 0){
+        printf("registering isr for STOP_ALARM failed.");
+    }
+
+    if (wiringPiISR(RESET_SYSTEM_TIME , INT_EDGE_FALLING, &stop_isr) != 0){
+        printf("registering isr for RESET_SYSTEM_TIME failed.");
+    }
+>>>>>>> 6e0d5177e1d35ffc2e3736a5c29c0784f26479a2
 
     return 1;
 }
