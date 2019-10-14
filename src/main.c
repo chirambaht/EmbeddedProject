@@ -6,7 +6,7 @@ long last_press = 0;            //Used for debouncing.
 int monitor = 0;                // 1 = on, 0 = off
 int interval = 1;               // How often values will be logged
 // long last_alarm = 0;            // The time that the last alarm was rung
-tyme current, last_alarm, actual, start;
+tyme current, last_alarm, actual, start_time;
 long last_alarm_press = -9999999;
 int alarm_buzzer = 0;           // 1 = on, 0 = off
 uint8_t temperature = 0;
@@ -60,7 +60,7 @@ int init_buttons(){
 
 void toggle_monitor(){
     if (!monitor){
-        start = current;
+        start_time = now();
     }
     monitor = !monitor;
 }
@@ -85,6 +85,7 @@ int init_DAC(){
 
 int init_RTC(){
     RTC = wiringPiI2CSetup(RTCADDR);
+    // set_time(now());
     return 1;
 }
 
@@ -131,28 +132,25 @@ int read_ADC(){
 }
 
 void reset_time(){
+    monitor = 1;
 
+    actual.hours = 0;
+    actual.seconds = 0;
+    actual.minutes = 0;
+
+    last_alarm_press = -9999999;
+
+    system("clear");
+
+    print_heading();
 }
 
 void reset_time_isr(){
     long interruptTime = millis();
     if (interruptTime - last_press > DEBOUNCE_TIME){
-        //Command
+        reset_time();
     }
     last_press = interruptTime;
-}
-
-int copy_arr(char* arr1, char* arr2){
-    for (int i = 0; i < 24; i++){
-        arr2[i] = arr1[i];
-    }
-    return 1;
-}
-
-void print_arr(char* arr){
-    for (int i = 0; i < 24; i++){
-        printf("%d - %c\n",i, arr[i] );
-    }
 }
 
 int update_Blynk(){
@@ -182,31 +180,29 @@ void toggle_interval_isr() {
     //Simply cycles through the different values of interval values
     long interruptTime = millis();
     if (interruptTime - last_press > DEBOUNCE_TIME){
-        if (interval == 1){
-            interval = 2;
-        }
-        else if (interval == 2){
-            interval = 5;
-        }
-        else {
-            interval = 1;
-        }
+        toggle_interval();
     }
     last_press = interruptTime;
 }
 
-long get_time() {
-    /* Get time from RTC and from real world */
+tyme now(){
     tyme temp;
     temp.seconds = wiringPiI2CReadReg8(RTC, SEC);
     temp.minutes = wiringPiI2CReadReg8(RTC, MIN);
     temp.hours = wiringPiI2CReadReg8(RTC, HOUR);
+    return temp;
+}
 
-    current.hours = hexCompensation(temp.hours);
-    current.minutes = hexCompensation(temp.minutes);
-    current.seconds = hexCompensation(temp.seconds);
+long get_time() {
+    /* Get time from RTC and from real world */
+    current = now();
+    // current.hours = hexCompensation(temp.hours);
+    // current.minutes = hexCompensation(temp.minutes);
+    // current.seconds = hexCompensation(temp.seconds);
 
-    actual.seconds += interval;
+    if (monitor){
+        actual.seconds += interval;
+    }
 
     if (actual.seconds == 60){
         actual.minutes += 1;
@@ -225,7 +221,8 @@ long get_time() {
 }
 
 void set_time(tyme t){
-    wiringPiI2CWriteReg8(RTC,SEC,(t.seconds | 0b1 << 7));
+    // wiringPiI2CWriteReg8(RTC,SEC,(t.seconds | 0b1 << 7));
+    wiringPiI2CWriteReg8(RTC,SEC, 0b10000000+t.seconds);
     wiringPiI2CWriteReg8(RTC,MIN,t.minutes);
     wiringPiI2CWriteReg8(RTC,HOUR,t.hours);
 }
@@ -245,18 +242,37 @@ void turn_off_alarm(){
 
 void turn_off_alarm_isr(){
     long interruptTime = millis();
-    if (interruptTime - last_alarm_press > ALARM_WAIT){
-        printf("Turned off alarm!\n" );
+    if (interruptTime - last_press > DEBOUNCE_TIME){
+        tyme t = time_difference(current, actual);
+        printf("%2d:%2d:%2d\n",t.hours,t.minutes, t.seconds );
         turn_off_alarm();
-        printf("Turned off alarm!\n" );
     }
-    last_alarm_press = interruptTime;
+    last_press = interruptTime;
+}
+
+tyme time_difference(tyme a, tyme b){
+    tyme temp = {0,0,0};
+    temp.seconds = abs(a.seconds - b.seconds);
+    temp.minutes = abs(a.minutes - b.minutes);
+    temp.hours = abs(a.hours - b.hours);
+
+    if (temp.seconds > 60){
+        temp.minutes += 1;
+        temp.seconds -= -60;
+    }
+    if (temp.minutes > 60){
+        temp.hours += 1;
+        temp.minutes -= 60;
+    }
+
+    return temp;
 }
 
 int sound_alarm() {
     // Check if good time to sound alarm //
     if (millis() - last_alarm_press > ALARM_WAIT){
         alarm_buzzer = 1;
+        last_alarm_press = millis();
     }
 
     return 1;
@@ -333,10 +349,11 @@ int print_values(){
     if (alarm_buzzer){
         a = '*';
     }
+    tyme runtime = time_difference(now(), start_time);
 
     //RTC Time Sys Timer Humidity Temp Light DAC out Alarm
         // printf("%2x:%2x:%2x\n",current.hours,current.minutes,current.seconds);
-    printf("| %2d:%2d:%2d | %2d:%2d:%2d |   %1.1f V  |     %2d C    | %5d |   %1.2f  |   %1c   |\n",current.hours,current.minutes,current.seconds,actual.hours,actual.minutes,actual.seconds, humidity, temperature, light_intensity, V_out ,a );
+    printf("| %2d:%2d:%2d | %2d:%2d:%2d |   %1.1f V  |     %2d C    | %5d |   %1.2f  |   %1c   |\n",current.hours,current.minutes,current.seconds,runtime.hours,runtime.minutes,runtime.seconds, humidity, temperature, light_intensity, V_out ,a );
     return 1;
 }
 
@@ -379,7 +396,7 @@ int main(int argc, char const *argv[]) {
     // pthread_attr_setschedparam (&tattr, &param); /* setting the new scheduling param */
     // pthread_create(&thread_id, &tattr, read_ADC, (void *)1); /* with new priority specified
     print_heading();
-    tyme a = {0x12 + TIMEZONE,0x30,(0x25 | 0b10000000)};
+    tyme a = {0x12 + TIMEZONE,0x30,0x25};
     current = a;
     set_time(current);
 
