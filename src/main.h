@@ -25,6 +25,12 @@
 #include <BlynkOptionsParser.h>
 #include <BlynkWidgets.h>
 
+//blynk buttons
+int START_STOP_BUTTON_BLYNK = 5; //GPIO5 Pin on the Pi
+int CHANGE_INTERVAL_BLYNK = 6; //GPIO6 Pin on the Pi
+int STOP_ALARM_BLYNK = 13; //GPIO13 Pin on the Pi
+int RESET_SYSTEM_TIME_BLYNK = 19; //GPIO19 Pin on the Pi
+
 
 // ==== ==== Buttons ==== ====//
 const int START_STOP_BUTTON = 21;
