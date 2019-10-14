@@ -44,7 +44,7 @@ const int MISO = 13;
 // ==== ==== Constants ==== ====//
 const int SPI_SPEED = 500000;
 const int DEBOUNCE_TIME = 300;
-const int ALARM_WAIT = 1000 * 60 * 3;
+const int ALARM_WAIT = 1000  * 10;
 
 // ==== ====    RTC    ==== ====//
 const char RTCADDR = 0x6f;
@@ -80,6 +80,9 @@ void toggle_interval_isr(void);
 void reset_time_isr(void);
 void turn_off_alarm_isr(void);
 int hexCompensation(int units);
+int print_heading(void);
 int decCompensation(int units);
+tyme time_difference(tyme a, tyme b);
+tyme now(void);
 
 #endif
