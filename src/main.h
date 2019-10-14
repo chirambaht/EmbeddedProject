@@ -14,6 +14,18 @@
 #include <pthread.h>
 // #include <bcm2835.h>
 
+//blynk defines
+#define BLYNK_PRINT stdout
+#ifdef RASPBERRY
+  #include <BlynkApiWiringPi.h>
+#else
+  #include <BlynkApiLinux.h>
+#endif
+#include <BlynkSocket.h>
+#include <BlynkOptionsParser.h>
+#include <BlynkWidgets.h>
+
+
 // ==== ==== Buttons ==== ====//
 const int START_STOP_BUTTON = 21;
 const int CHANGE_INTERVAL = 22;
