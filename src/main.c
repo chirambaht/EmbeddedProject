@@ -1,9 +1,13 @@
 #include "main.h"
+#include "CurrentTime.h"
 
 // ===== ===== ==== Variable Definitions ===== ==== ==== //
+long last_press = 0;            //Used for debouncing.
 int monitor = 0;                // 1 = on, 0 = off
 int interval = 1;               // How often values will be logged
-long last_alarm = 0;            // The time that the last alarm was rung
+// long last_alarm = 0;            // The time that the last alarm was rung
+tyme current, last_alarm, actual, start;
+long last_alarm_press = -9999999;
 int alarm_buzzer = 0;           // 1 = on, 0 = off
 uint8_t temperature = 0;
 float humidity = 0;
@@ -11,10 +15,11 @@ uint16_t light_intensity = 0;
 float V_out = 0;
 long current_time = 0;          // How long the system has been running for
 long system_time = 0;
-int DEBUG = 1;
+int DEBUG = 1;                  // 1 is Debug mode
 // bool threadReady = false;       //using this to finish writing the first column at the start of the song, before the column is played
 
 int hours, mins, secs;
+int HH,MM,SS;
 long lastInterruptTime = 0;     // Used for button debounce
 int RTC;                        // Holds the RTC instance
 
@@ -34,27 +39,38 @@ int init_buttons(){
     pinMode(RESET_SYSTEM_TIME , INPUT);
     pullUpDnControl(RESET_SYSTEM_TIME , PUD_UP);
 
-    // if (wiringPiISR(START_STOP_BUTTON, INT_EDGE_FALLING, &toggle_monitor) != 0){
-    //     printf("registering isr for stop/start button failed.");
-    // }
-    //
-    // if (wiringPiISR(CHANGE_INTERVAL, INT_EDGE_FALLING, &change_interval) != 0){
-    //     printf("registering isr for inverval button failed.");
-    // }
-    //
-    //  if (wiringPiISR(STOP_ALARM, INT_EDGE_FALLING, &turn_off_alarm) != 0){
-    //     printf("registering isr for stop alarm button failed.");
-    // }
-    //
-    // if (wiringPiISR(RESET_SYSTEM_TIME , INT_EDGE_FALLING, &reset_time) != 0){
-    //     printf("registering isr for reset button failed.");
-    // }
+    if (wiringPiISR(START_STOP_BUTTON, INT_EDGE_FALLING, &toggle_monitor_isr) != 0){
+        printf("registering isr for stop/start button failed.");
+    }
+
+    if (wiringPiISR(CHANGE_INTERVAL, INT_EDGE_FALLING, &toggle_interval_isr) != 0){
+        printf("registering isr for inverval button failed.");
+    }
+
+     if (wiringPiISR(STOP_ALARM, INT_EDGE_FALLING, &turn_off_alarm_isr) != 0){
+        printf("registering isr for stop alarm button failed.");
+    }
+
+    if (wiringPiISR(RESET_SYSTEM_TIME , INT_EDGE_FALLING, &reset_time_isr) != 0){
+        printf("registering isr for reset button failed.");
+    }
 
     return 1;
 }
 
 void toggle_monitor(){
+    if (!monitor){
+        start = current;
+    }
     monitor = !monitor;
+}
+
+void toggle_monitor_isr(){
+    long interruptTime = millis();
+    if (interruptTime - last_press > DEBOUNCE_TIME){
+        toggle_monitor();
+    }
+    last_press = interruptTime;
 }
 
 int init_ADC(){
@@ -114,8 +130,16 @@ int read_ADC(){
     return 1;
 }
 
-int reset_time(){
-    return 1;
+void reset_time(){
+
+}
+
+void reset_time_isr(){
+    long interruptTime = millis();
+    if (interruptTime - last_press > DEBOUNCE_TIME){
+        //Command
+    }
+    last_press = interruptTime;
 }
 
 int copy_arr(char* arr1, char* arr2){
@@ -141,7 +165,7 @@ int get_Blynk_command(){
     return 1;
 }
 
-int change_interval() {
+void toggle_interval() {
     //Simply cycles through the different values of interval values
     if (interval == 1){
         interval = 2;
@@ -152,13 +176,58 @@ int change_interval() {
     else {
         interval = 1;
     }
-    return 1;
+}
+
+void toggle_interval_isr() {
+    //Simply cycles through the different values of interval values
+    long interruptTime = millis();
+    if (interruptTime - last_press > DEBOUNCE_TIME){
+        if (interval == 1){
+            interval = 2;
+        }
+        else if (interval == 2){
+            interval = 5;
+        }
+        else {
+            interval = 1;
+        }
+    }
+    last_press = interruptTime;
 }
 
 long get_time() {
     /* Get time from RTC and from real world */
+    tyme temp;
+    temp.seconds = wiringPiI2CReadReg8(RTC, SEC);
+    temp.minutes = wiringPiI2CReadReg8(RTC, MIN);
+    temp.hours = wiringPiI2CReadReg8(RTC, HOUR);
+
+    current.hours = hexCompensation(temp.hours);
+    current.minutes = hexCompensation(temp.minutes);
+    current.seconds = hexCompensation(temp.seconds);
+
+    actual.seconds += interval;
+
+    if (actual.seconds == 60){
+        actual.minutes += 1;
+        actual.seconds = 0;
+    }
+    if (actual.minutes == 60){
+        actual.hours += 1;
+        actual.minutes = 0;
+    }
+    if (actual.hours == 24){
+        actual.hours = 0;
+    }
+
 
     return 0;
+}
+
+void set_time(tyme t){
+    wiringPiI2CWriteReg8(RTC,SEC,(t.seconds | 0b1 << 7));
+    wiringPiI2CWriteReg8(RTC,MIN,t.minutes);
+    wiringPiI2CWriteReg8(RTC,HOUR,t.hours);
 }
 
 float calculate_Vout() {
@@ -170,14 +239,26 @@ float calculate_Vout() {
     return ans;
 }
 
-int turn_off_alarm(){
+void turn_off_alarm(){
     alarm_buzzer = 0;
-    return 1;
+}
+
+void turn_off_alarm_isr(){
+    long interruptTime = millis();
+    if (interruptTime - last_alarm_press > ALARM_WAIT){
+        printf("Turned off alarm!\n" );
+        turn_off_alarm();
+        printf("Turned off alarm!\n" );
+    }
+    last_alarm_press = interruptTime;
 }
 
 int sound_alarm() {
     // Check if good time to sound alarm //
-    alarm_buzzer = 1;
+    if (millis() - last_alarm_press > ALARM_WAIT){
+        alarm_buzzer = 1;
+    }
+
     return 1;
 }
 
@@ -254,9 +335,26 @@ int print_values(){
     }
 
     //RTC Time Sys Timer Humidity Temp Light DAC out Alarm
-    printf("| %8s | %8s |   %1.1f V  |     %2d C    | %5d |   %1.2f  |   %1c   |\n","test","test", humidity, temperature, light_intensity, V_out ,a );
+        // printf("%2x:%2x:%2x\n",current.hours,current.minutes,current.seconds);
+    printf("| %2d:%2d:%2d | %2d:%2d:%2d |   %1.1f V  |     %2d C    | %5d |   %1.2f  |   %1c   |\n",current.hours,current.minutes,current.seconds,actual.hours,actual.minutes,actual.seconds, humidity, temperature, light_intensity, V_out ,a );
     return 1;
 }
+
+// void get_current_time(){
+//     HH = getHours();
+//     MM = getMins();
+//     SS = getSecs();
+//
+//     HH = hFormat(HH);
+//     HH = decCompensation(HH);
+//     // wiringPiI2CWriteReg8(RTC, HOUR, HH);
+//
+//     MM = decCompensation(MM);
+//     // wiringPiI2CWriteReg8(RTC, MIN, MM);
+//
+//     SS = decCompensation(SS);
+//     // wiringPiI2CWriteReg8(RTC, SEC, 0b10000000+SS);
+// }
 
 int main(int argc, char const *argv[]) {
     /* code */
@@ -266,6 +364,8 @@ int main(int argc, char const *argv[]) {
 
     init_ADC();
     init_DAC();
+
+    init_RTC();
 
     // // Thread setup
     // pthread_attr_t tattr;
@@ -279,17 +379,21 @@ int main(int argc, char const *argv[]) {
     // pthread_attr_setschedparam (&tattr, &param); /* setting the new scheduling param */
     // pthread_create(&thread_id, &tattr, read_ADC, (void *)1); /* with new priority specified
     print_heading();
-
+    tyme a = {0x12 + TIMEZONE,0x30,(0x25 | 0b10000000)};
+    current = a;
+    set_time(current);
 
     for (;;){
-        read_ADC();
-        calculate_Vout();
-        write_DAC();
-        print_values();
+        if (monitor){
+            read_ADC();
+            calculate_Vout();
+            write_DAC();
+            print_values();
+
+        }
+        get_time();
         delay(interval * 1000);
     }
 
-    // --- ---- --- Debug Lines --- ---- ---//
-    // printf("Temp: %3.3f\nHumidity: %3.3f\nLight: %3.3f\nV_out: %3.3f\nAlarm?: %d\nTime: %s\nInterval: %d\n",temperature,humidity, light_intensity, V_out, alarm_buzzer, "Coming soon", interval );
     return 0;
 }

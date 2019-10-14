@@ -28,11 +28,11 @@ const int SCL = 9;
 const int SCLK = 14;
 const int MOSI = 12;
 const int MISO = 13;
-const int CS0 = 0;
-const int CS1 = 2;
 
 // ==== ==== Constants ==== ====//
 const int SPI_SPEED = 500000;
+const int DEBOUNCE_TIME = 300;
+const int ALARM_WAIT = 1000 * 60 * 3;
 
 // ==== ====    RTC    ==== ====//
 const char RTCADDR = 0x6f;
@@ -41,38 +41,33 @@ const char MIN = 0x01;
 const char HOUR = 0x02;
 const char TIMEZONE = 2; // +02H00 (RSA)
 
-// ==== ====    ADC    ==== ==== //
-
-
-// const int ADC_CHANNEL_0 = 0x0180000;
-// const unsigned char ADC_CHANNEL_0 = {0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-// const int ADC_CHANNEL_1 = 0x0190000;
-// const unsigned char ADC_CHANNEL_1 = {0,0,0,0,0,0,0,1,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0};
-// const int ADC_CHANNEL_2 = 0x01A0000;
-// const unsigned char ADC_CHANNEL_2 = {0,0,0,0,0,0,0,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0};
+typedef struct {
+    uint8_t hours;
+    uint8_t minutes;
+    uint8_t seconds;
+} tyme;
 
 // ==== ==== Functions ==== ====//
 int init_buttons(void);
-void toggle_monitor(void);
-
-// int readADC(uint8_t chan);
-// float volts_adc(int adc);
 int init_ADC(void);
-// int init_DAC(void);
+int init_DAC(void);
 int init_RTC(void);
 int update_Blynk(void);
 int get_Blynk_command(void);
-int change_interval(void);
 long get_time(void);
 float calculate_Vout(void);
-int turn_off_alarm(void);
 int sound_alarm(void);
 int read_ADC(void);
 int hFormat(int hours);
+void toggle_monitor(void);
+void toggle_interval(void);
+void reset_time(void);
+void turn_off_alarm(void);
+void toggle_monitor_isr(void);
+void toggle_interval_isr(void);
+void reset_time_isr(void);
+void turn_off_alarm_isr(void);
 int hexCompensation(int units);
 int decCompensation(int units);
-uint16_t get_ADC_value(char* arr[]);
-
-
 
 #endif
