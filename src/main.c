@@ -60,7 +60,7 @@ int init_buttons(){
 
 void toggle_monitor(){
     if (!monitor){
-        start_time = now();
+        start_time = current;
     }
     monitor = !monitor;
 }
@@ -132,7 +132,7 @@ int read_ADC(){
 }
 
 void reset_time(){
-    monitor = 1;
+    monitor = 0;
 
     actual.hours = 0;
     actual.seconds = 0;
@@ -194,26 +194,20 @@ tyme now(){
 }
 
 long get_time() {
-    /* Get time from RTC and from real world */
-    current = now();
-    // current.hours = hexCompensation(temp.hours);
-    // current.minutes = hexCompensation(temp.minutes);
-    // current.seconds = hexCompensation(temp.seconds);
-
     if (monitor){
-        actual.seconds += interval;
+        current.seconds += interval;
     }
 
-    if (actual.seconds == 60){
-        actual.minutes += 1;
-        actual.seconds = 0;
+    if (current.seconds == 60){
+        current.minutes += 1;
+        current.seconds = 0;
     }
-    if (actual.minutes == 60){
-        actual.hours += 1;
-        actual.minutes = 0;
+    if (current.minutes == 60){
+        current.hours += 1;
+        current.minutes = 0;
     }
-    if (actual.hours == 24){
-        actual.hours = 0;
+    if (current.hours == 24){
+        current.hours = 0;
     }
 
 
@@ -243,8 +237,8 @@ void turn_off_alarm(){
 void turn_off_alarm_isr(){
     long interruptTime = millis();
     if (interruptTime - last_press > DEBOUNCE_TIME){
-        tyme t = time_difference(current, actual);
-        printf("%2d:%2d:%2d\n",t.hours,t.minutes, t.seconds );
+        // tyme t = time_difference(current, actual);
+        // printf("%2d:%2d:%2d\n",t.hours,t.minutes, t.seconds );
         turn_off_alarm();
     }
     last_press = interruptTime;
@@ -252,18 +246,23 @@ void turn_off_alarm_isr(){
 
 tyme time_difference(tyme a, tyme b){
     tyme temp = {0,0,0};
-    temp.seconds = abs(a.seconds - b.seconds);
-    temp.minutes = abs(a.minutes - b.minutes);
-    temp.hours = abs(a.hours - b.hours);
 
-    if (temp.seconds > 60){
-        temp.minutes += 1;
-        temp.seconds -= -60;
+    int sum_a = a.seconds + (60 * a.minutes) + (60 * 60 * a.hours);
+    int sum_b = b.seconds + (60 * b.minutes) + (60 * 60 * b.hours);
+    int sum = abs(sum_a - sum_b);
+
+    while (sum >= 60){
+        if (sum >= 60){
+            temp.minutes += 1;
+            sum -= 60;
+        }
+        if (temp.minutes >= 60){
+            temp.hours += 1;
+            temp.minutes -= 60;
+        }
     }
-    if (temp.minutes > 60){
-        temp.hours += 1;
-        temp.minutes -= 60;
-    }
+
+    temp.seconds = sum;
 
     return temp;
 }
@@ -349,7 +348,7 @@ int print_values(){
     if (alarm_buzzer){
         a = '*';
     }
-    tyme runtime = time_difference(now(), start_time);
+    tyme runtime = time_difference(current, start_time);
 
     printf("| %2d:%2d:%2d | %2d:%2d:%2d |   %1.1f V  |     %2d C    | %5d |   %1.2f  |   %1c   |\n",current.hours,current.minutes,current.seconds,runtime.hours,runtime.minutes,runtime.seconds, humidity, temperature, light_intensity, V_out ,a );
     return 1;
@@ -394,24 +393,19 @@ int main(int argc, char const *argv[]) {
     // pthread_attr_setschedparam (&tattr, &param); /* setting the new scheduling param */
     // pthread_create(&thread_id, &tattr, read_ADC, (void *)1); /* with new priority specified
     print_heading();
-    // tyme a = {0x12 + TIMEZONE,0x30,0xFF};
-
-    // set_time(current);
-
-    wiringPiI2CWriteReg8(RTC, HOUR, 0x13+TIMEZONE);
-	wiringPiI2CWriteReg8(RTC, MIN, 0x54);
-	wiringPiI2CWriteReg8(RTC, SEC, 0x80);
-    current = now();
-
+    tyme temp = {0x12 + TIMEZONE,0x30,0x53};
+    current.hours = hexCompensation(temp.hours);
+    current.minutes = hexCompensation(temp.minutes);
+    current.seconds = hexCompensation(temp.seconds);
     for (;;){
         if (monitor){
             read_ADC();
             calculate_Vout();
             write_DAC();
             print_values();
-
         }
-        wait();
+        get_time();
+        delay(interval * 1000);
     }
 
 
@@ -419,8 +413,5 @@ int main(int argc, char const *argv[]) {
 }
 
 void wait(){
-    secs = hexCompensation(wiringPiI2CReadReg8(RTC, SEC));
-    secs += interval;
-    wiringPiI2CWriteReg8(RTC, SEC, decCompensation(secs));
-    delay(interval * 1000);
+
 }
