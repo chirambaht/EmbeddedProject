@@ -72,5 +72,6 @@ int print_heading(void);
 int decCompensation(int units);
 tyme time_difference(tyme a, tyme b);
 tyme now(void);
+void wait(void);
 
 #endif

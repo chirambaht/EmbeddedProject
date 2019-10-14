@@ -351,8 +351,6 @@ int print_values(){
     }
     tyme runtime = time_difference(now(), start_time);
 
-    //RTC Time Sys Timer Humidity Temp Light DAC out Alarm
-        // printf("%2x:%2x:%2x\n",current.hours,current.minutes,current.seconds);
     printf("| %2d:%2d:%2d | %2d:%2d:%2d |   %1.1f V  |     %2d C    | %5d |   %1.2f  |   %1c   |\n",current.hours,current.minutes,current.seconds,runtime.hours,runtime.minutes,runtime.seconds, humidity, temperature, light_intensity, V_out ,a );
     return 1;
 }
@@ -396,9 +394,14 @@ int main(int argc, char const *argv[]) {
     // pthread_attr_setschedparam (&tattr, &param); /* setting the new scheduling param */
     // pthread_create(&thread_id, &tattr, read_ADC, (void *)1); /* with new priority specified
     print_heading();
-    tyme a = {0x12 + TIMEZONE,0x30,0x25};
-    current = a;
-    set_time(current);
+    // tyme a = {0x12 + TIMEZONE,0x30,0xFF};
+
+    // set_time(current);
+
+    wiringPiI2CWriteReg8(RTC, HOUR, 0x13+TIMEZONE);
+	wiringPiI2CWriteReg8(RTC, MIN, 0x54);
+	wiringPiI2CWriteReg8(RTC, SEC, 0x80);
+    current = now();
 
     for (;;){
         if (monitor){
@@ -408,9 +411,16 @@ int main(int argc, char const *argv[]) {
             print_values();
 
         }
-        get_time();
-        delay(interval * 1000);
+        wait();
     }
 
+
     return 0;
+}
+
+void wait(){
+    secs = hexCompensation(wiringPiI2CReadReg8(RTC, SEC));
+    secs += interval;
+    wiringPiI2CWriteReg8(RTC, SEC, decCompensation(secs));
+    delay(interval * 1000);
 }
