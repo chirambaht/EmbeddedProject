@@ -1,11 +1,6 @@
 #include "main.h"
 #include "CurrentTime.h"
 
-<<<<<<< HEAD
-=======
-
-
->>>>>>> daa2c54a3a6930e23e2674bec657036f997f2795
 // ===== ===== ==== Variable Definitions ===== ==== ==== //
 long last_press = 0;            //Used for debouncing.
 int monitor = 0;                // 1 = on, 0 = off
@@ -28,19 +23,6 @@ int HH,MM,SS;
 long lastInterruptTime = 0;     // Used for button debounce
 int RTC;                        // Holds the RTC instance
 
-<<<<<<< HEAD
-=======
-
-
-//blynk variable definitions
-static BlynkTransportSocket _blynkTransport;
-BlynkSocket Blynk(_blynkTransport);
- 
-static const char *auth, *serv;
-static uint16_t port;
- 
-
->>>>>>> daa2c54a3a6930e23e2674bec657036f997f2795
 // ===== ===== ==== Function Definitions ===== ==== ==== //
 
 int init_buttons(){
@@ -76,16 +58,6 @@ int init_buttons(){
     return 1;
 }
 
-<<<<<<< HEAD
-=======
-//Blynksetup
-void blynkSetup()
-{
-    Blynk.begin(auth, serv, port);
- 
-}
-////////////////////////
->>>>>>> daa2c54a3a6930e23e2674bec657036f997f2795
 void toggle_monitor(){
     if (!monitor){
         start_time = current;
@@ -399,13 +371,6 @@ int print_values(){
 // }
 
 int main(int argc, char const *argv[]) {
-<<<<<<< HEAD
-=======
-
-    parse_options(argc, argv, auth, serv, port);
- 
-    blynkSetup();
->>>>>>> daa2c54a3a6930e23e2674bec657036f997f2795
     /* code */
     //Set up wiring Pi
     wiringPiSetup();
@@ -433,10 +398,6 @@ int main(int argc, char const *argv[]) {
     current.minutes = hexCompensation(temp.minutes);
     current.seconds = hexCompensation(temp.seconds);
     for (;;){
-<<<<<<< HEAD
-=======
-        Blynk.run();
->>>>>>> daa2c54a3a6930e23e2674bec657036f997f2795
         if (monitor){
             read_ADC();
             calculate_Vout();
